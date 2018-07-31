@@ -133,8 +133,10 @@ endef
 
 LOCAL_DEPS = sasl mnesia os_mon inets
 BUILD_DEPS = rabbitmq_cli
-DEPS = ranch syslog lager rabbit_common
+DEPS = ranch syslog lager rabbit_common ramnesia
 TEST_DEPS = rabbitmq_ct_helpers rabbitmq_ct_client_helpers amqp_client meck proper
+
+dep_ramnesia = git https://github.com/hairyhum/ramnesia master
 
 dep_syslog = git https://github.com/schlagert/syslog 3.4.2
 

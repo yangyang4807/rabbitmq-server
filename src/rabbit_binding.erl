@@ -165,10 +165,10 @@ exists(Binding) ->
 add(Binding, ActingUser) -> add(Binding, fun (_Src, _Dst) -> ok end, ActingUser).
 
 add(Binding, InnerFun, ActingUser) ->
-    binding_action(
+    Res = binding_action(
       Binding,
       fun (Src, Dst, B) ->
-              case rabbit_exchange:validate_binding(Src, B) of
+              Res1 = case rabbit_exchange:validate_binding(Src, B) of
                   ok ->
                       lock_resource(Src),
                       lock_resource(Dst),
@@ -186,8 +186,12 @@ add(Binding, InnerFun, ActingUser) ->
                       end;
                   {error, _} = Err ->
                       rabbit_misc:const(Err)
-              end
-      end, fun not_found_or_absent_errs/1).
+              end,
+              io:format("Inner action result ~p~n", [Res1]),
+              Res1
+      end, fun not_found_or_absent_errs/1),
+    io:format("Binding action result ~p~n", [Res]),
+    Res.
 
 add(Src, Dst, B, ActingUser) ->
     lock_resource(Src),
@@ -199,13 +203,18 @@ add(Src, Dst, B, ActingUser) ->
                                  fun mnesia:write/3),
                  x_callback(transaction, Src, add_binding, B),
                  Serial = rabbit_exchange:serial(Src),
-                 fun () ->
+                 F = fun () ->
                          x_callback(Serial, Src, add_binding, B),
                          ok = rabbit_event:notify(
                                 binding_created,
                                 info(B) ++ [{user_who_performed_action, ActingUser}])
-                 end;
-        true  -> rabbit_misc:const({error, binding_not_found})
+                 end,
+                 io:format("Fun return ~p~n", [F]),
+                 F;
+        true  ->
+            Const = rabbit_misc:const({error, binding_not_found}),
+            io:format("Constant return ~p~n", [Const]),
+            Const
     end.
 
 remove(Binding) -> remove(Binding, fun (_Src, _Dst) -> ok end, ?INTERNAL_USER).

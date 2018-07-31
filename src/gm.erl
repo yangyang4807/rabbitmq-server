@@ -496,7 +496,7 @@ create_tables() ->
 create_tables([]) ->
     ok;
 create_tables([{Table, Attributes} | Tables]) ->
-    case mnesia:create_table(Table, Attributes) of
+    case ramnesia:create_table(Table, Attributes) of
         {atomic, ok}                       -> create_tables(Tables);
         {aborted, {already_exists, Table}} -> create_tables(Tables);
         Err                                -> Err
@@ -528,7 +528,7 @@ validate_members(Server, Members) ->
     gen_server2:cast(Server, {validate_members, Members}).
 
 forget_group(GroupName) ->
-    {atomic, ok} = mnesia:sync_transaction(
+    {atomic, ok} = ramnesia:transaction(
                      fun () ->
                              mnesia:delete({?GROUP_TABLE, GroupName})
                      end),

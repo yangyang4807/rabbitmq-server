@@ -160,13 +160,13 @@
                    [{description, "core initialized"},
                     {requires,    kernel_ready}]}).
 
--rabbit_boot_step({upgrade_queues,
-                   [{description, "per-vhost message store migration"},
-                    {mfa,         {rabbit_upgrade,
-                                   maybe_migrate_queues_to_per_vhost_storage,
-                                   []}},
-                    {requires,    [core_initialized]},
-                    {enables,     recovery}]}).
+% -rabbit_boot_step({upgrade_queues,
+%                    [{description, "per-vhost message store migration"},
+%                     {mfa,         {rabbit_upgrade,
+%                                    maybe_migrate_queues_to_per_vhost_storage,
+%                                    []}},
+%                     {requires,    [core_initialized]},
+%                     {enables,     recovery}]}).
 
 -rabbit_boot_step({recovery,
                    [{description, "exchange, queue and binding recovery"},
@@ -292,7 +292,10 @@ start() ->
                      ok = start_logger(),
                      rabbit_hipe:log_hipe_result(HipeResult),
                      rabbit_node_monitor:prepare_cluster_status_files(),
-                     rabbit_mnesia:check_cluster_consistency(),
+                     %% Remove consistency check in boot.
+                     %% Ramnesia is not yet started.
+                     %% rabbit_mnesia:check_cluster_consistency(),
+
                      broker_start()
              end).
 
@@ -303,12 +306,19 @@ boot() ->
                      HipeResult = rabbit_hipe:maybe_hipe_compile(),
                      ok = start_logger(),
                      rabbit_hipe:log_hipe_result(HipeResult),
-                     rabbit_node_monitor:prepare_cluster_status_files(),
-                     ok = rabbit_upgrade:maybe_upgrade_mnesia(),
+                     % io:format("Prepare cluster status files"),
+                     % rabbit_node_monitor:prepare_cluster_status_files(),
+                     % io:format("Maybe upgrade mnesia"),
+                     % ok = rabbit_upgrade:maybe_upgrade_mnesia(),
+
                      %% It's important that the consistency check happens after
                      %% the upgrade, since if we are a secondary node the
                      %% primary node will have forgotten us
-                     rabbit_mnesia:check_cluster_consistency(),
+
+                     %% Remove consistency check in boot.
+                     %% Ramnesia is not yet started.
+                     %% rabbit_mnesia:check_cluster_consistency(),
+
                      broker_start()
              end).
 
@@ -887,12 +897,20 @@ boot_delegate() ->
     rabbit_sup:start_supervisor_child(delegate_sup, [Count]).
 
 recover() ->
+io:format("Recover policy ~n"),
     rabbit_policy:recover(),
+io:format("Recover vhost ~n"),
     rabbit_vhost:recover().
 
 maybe_insert_default_data() ->
     case rabbit_table:needs_default_data() of
-        true  -> insert_default_data();
+        true  ->
+            {ok, _, {_, Leader}} = ra:members(ramnesia_node:node_id()),
+            case Leader == node() of
+                true ->
+                    insert_default_data();
+                false -> ok
+            end;
         false -> ok
     end.
 
